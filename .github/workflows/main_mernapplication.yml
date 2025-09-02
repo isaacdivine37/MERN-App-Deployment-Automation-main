@@ -24,9 +24,9 @@ jobs:
         working-directory: app/server
         run: npm install
 
-      - name: Zip artifact
-        run: zip -r release.zip .
+      - name: Zip artifact (excluding node_modules)
         working-directory: app/server
+        run: zip -r release.zip . -x "node_modules/*"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -39,7 +39,7 @@ jobs:
     needs: build
     environment:
       name: 'Production'
-      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
+      url: https://MERNAPPLICATION.azurewebsites.net
     permissions:
       id-token: write
 
@@ -60,6 +60,3 @@ jobs:
         with:
           app-name: 'MERNAPPLICATION'
           package: release.zip
-          
-
-

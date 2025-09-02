@@ -1,19 +1,12 @@
-# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
-# More GitHub Actions for Azure: https://github.com/Azure/actions
-
 name: Build and deploy Node.js app to Azure Web App - mern-employer-app
 
 on:
-  # Trigger the workflow on push events to the main branch
   push:
     branches:
       - main
-    # Only trigger if changes are made to these files or directories
     paths:
       - .github/workflows/azure-web-app-backend-pipeline.yml
       - 'app/server/**'
-  
-  # Allow manual triggering of the workflow from the GitHub Actions UI
   workflow_dispatch:
 
 jobs:
@@ -21,28 +14,30 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout the repository code
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      # Set up the Node.js environment
-      - name: Set up Node.js version
+      - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '20.x'
 
-      # Install dependencies
-      - name: npm install, build, and test
-        run: |
-          npm install
+      - name: Install dependencies
         working-directory: app/server
+        run: npm install
 
-      # Create a zip file of the project for deployment
-      - name: Zip artifact for deployment
+      - name: Build (if needed, e.g., transpile TypeScript or copy assets)
+        working-directory: app/server
+        run: |
+          # Example: if using TypeScript or building dist folder
+          # npm run build
+          echo "No build step required for plain Node.js" # Remove if you have a build
+
+      - name: Zip artifact
         run: zip -r release.zip .
         working-directory: app/server
 
-      # Upload the zipped artifact for use in the deployment job
-      - name: Upload artifact for deployment job
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: node-app
@@ -53,22 +48,17 @@ jobs:
     needs: build
     environment:
       name: 'Production'
-      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }} # URL of the deployed app
+      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
     permissions:
-      id-token: write # Required for requesting the JWT
+      id-token: write
 
     steps:
-      # Download the artifact from the build job
-      - name: Download artifact from build job
+      - name: Download artifact
         uses: actions/download-artifact@v4
         with:
           name: node-app
+          path: ./app/server
 
-      # Unzip the artifact to prepare for deployment
-      - name: Unzip artifact for deployment
-        run: unzip release.zip
-      
-      # Log in to Azure using credentials from GitHub Secrets
       - name: Login to Azure
         uses: azure/login@v2
         with:
@@ -76,14 +66,10 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_8B38A9FC988E4EBDA1AD8D7F80CCED47 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_B26E722AE7BE4751B016434B251D1577 }}
 
-      # Deploy the app to Azure Web App
-      - name: 'Deploy to Azure Web App'
+      - name: Deploy to Azure Web App
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
           app-name: 'mern-employer-app'
           slot-name: 'Production'
-          package: .
-          
-        
-        
+          package: ./app/server/release.zip  # Point directly to the zip

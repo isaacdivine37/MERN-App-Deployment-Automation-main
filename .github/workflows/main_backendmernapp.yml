@@ -1,4 +1,4 @@
-name: Build and deploy Backend (Node.js) to Azure Web App
+name: Build and Deploy Backend (Node.js) to Azure Web App
 
 on:
   push:
@@ -12,63 +12,85 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      # Checkout the repository
-      - uses: actions/checkout@v4
+      - name: 🛎️ Checkout Repository
+        uses: actions/checkout@v4
 
-      # Setup Node.js
-      - name: Set up Node.js version
+      # 🔍 Debug: Verify the file structure
+      - name: 🔍 Debug - Check Directory Structure
+        run: |
+          echo "📍 Current workspace: ${{ github.workspace }}"
+          echo ""
+          echo "📁 Root contents:"
+          ls -la
+          echo ""
+          echo "📁 app/ contents:"
+          ls -la app || echo "❌ 'app' directory not found!"
+          echo ""
+          echo "📁 app/server/ contents:"
+          ls -la app/server || echo "❌ 'app/server' directory not found!"
+          echo ""
+          echo "📄 Check for package.json..."
+          if [ -f "app/server/package.json" ]; then
+            echo "✅ package.json found!"
+            node -p "require('./app/server/package.json').name + ' v' + require('./app/server/package.json').version"
+          else
+            echo "❌ ERROR: package.json is missing in app/server/"
+            exit 1
+          fi
+
+      - name: ⚙️ Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '20.x'
+          cache: 'npm'
 
-      # Install & build backend
-      - name: Install dependencies
+      - name: 📦 Install Dependencies
         run: npm ci --omit=dev
-        working-directory: app/server
+        working-directory: ${{ github.workspace }}/app/server
 
-      - name: Run build (if exists)
+      - name: 🛠️ Run Build (if exists)
         run: npm run build --if-present
-        working-directory: app/server
+        working-directory: ${{ github.workspace }}/app/server
 
-      # Upload backend for deployment
-      - name: Upload backend artifact
+      - name: 📤 Upload Backend Artifact
         uses: actions/upload-artifact@v4
         with:
           name: backend-app
-          path: app/server
+          path: ${{ github.workspace }}/app/server
+          retention-days: 1
 
   deploy:
     runs-on: ubuntu-latest
     needs: build
     environment:
-      name: 'Production'
-      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
+      name: Production
     permissions:
-      id-token: write
+      id-token: write  # Required for Azure login
 
     steps:
-      # Download backend artifact
-      - name: Download artifact
+      - name: 📥 Download Artifact
         uses: actions/download-artifact@v4
         with:
           name: backend-app
           path: ./app/server
 
-      # Login to Azure
-      - name: Login to Azure
+      - name: 🔐 Login to Azure
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_C4ABF48A397944228054B8CED287C3F6 }}
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_7A68F2BF628E4F54A14B6D25C30EFEFE }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_346DB99210604A59B7A0CF9B84033679 }}
 
-      # Deploy backend App Service
-      - name: Deploy to Azure Web App
+      - name: 🚀 Deploy to Azure Web App
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
           app-name: 'Backendmernapp'
           slot-name: 'Production'
           package: ./app/server
+
+      - name: 🌐 Output Web App URL
+        run: |
+          echo "Web App URL: https://Backendmernapp.azurewebsites.net"
+        # Optional: expose URL in workflow

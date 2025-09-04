@@ -1,85 +1,82 @@
 name: Build and Deploy Backend to Azure
-
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - .github/workflows/azure-web-app-backend-pipeline.yml
-      - 'app/server/**'
-  workflow_dispatch:
+ push:
+   branches:
+     - main
+   paths:
+     - .github/workflows/azure-web-app-backend-pipeline.yml
+     - 'app/server/**'
+ workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: 🛎️ Checkout Code
-        uses: actions/checkout@v4
+ build:
+   runs-on: ubuntu-latest
+   steps:
+     - name: 🛎️ Checkout Code
+       uses: actions/checkout@v4
 
-      - name: 🔍 Debug: Verify File Structure
-        run: |
-          echo "📂 Root contents:"
-          ls -la
-          echo ""
-          echo "📁 app/server contents:"
-          ls -la app/server || echo "❌ FAIL: app/server not found!"
-          echo ""
-          if [ -f "app/server/package.json" ]; then
-            echo "✅ SUCCESS: package.json found in app/server/"
-            cat app/server/package.json | grep name
-          else
-            echo "🚨 ERROR: package.json is MISSING in app/server/"
-            exit 1
-          fi
+     - name: 🔍 Debug - Verify File Structure
+       run: |
+         echo "📂 Root contents:"
+         ls -la
+         echo ""
+         echo "📁 app/server contents:"
+         ls -la app/server || echo "❌ FAIL: app/server not found!"
+         echo ""
+         if [ -f "app/server/package.json" ]; then
+           echo "✅ SUCCESS: package.json found!"
+           cat app/server/package.json | grep name
+         else
+           echo "🚨 ERROR: package.json is MISSING in app/server/"
+           exit 1
+         fi
 
-      - name: ⚙️ Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '20.x'
-          cache: npm
+     - name: ⚙️ Setup Node.js
+       uses: actions/setup-node@v3
+       with:
+         node-version: '20.x'
+         cache: 'npm'
 
-      - name: 📦 Install Dependencies
-        run: npm ci --omit=dev
-        working-directory: app/server
+     - name: 📦 Install Dependencies
+       run: npm ci --omit=dev
+       working-directory: app/server
 
-      - name: 🛠️ Build (if defined)
-        run: npm run build --if-present
-        working-directory: app/server
+     - name: 🛠️ Build (if defined)
+       run: npm run build --if-present
+       working-directory: app/server
 
-      - name: 📤 Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend-app
-          path: app/server
-          retention-days: 1
+     - name: 📤 Upload Artifact
+       uses: actions/upload-artifact@v4
+       with:
+         name: backend-app
+         path: app/server
+         retention-days: 1
 
-  deploy:
-    runs-on: ubuntu-latest
-    needs: build
-    environment:
-      name: Production
-    permissions:
-      id-token: write
+ deploy:
+   runs-on: ubuntu-latest
+   needs: build
+   environment: Production
+   permissions:
+     id-token: write
+   steps:
+     - name: 📥 Download Artifact
+       uses: actions/download-artifact@v4
+       with:
+         name: backend-app
+         path: ./app/server
 
-    steps:
-      - name: 📥 Download Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: backend-app
-          path: ./app/server
+     - name: 🔐 Login to Azure
+       uses: azure/login@v2
+       with:
+         client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_C4ABF48A397944228054B8CED287C3F6 }}
+         tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_7A68F2BF628E4F54A14B6D25C30EFEFE }}
+         subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_346DB99210604A59B7A0CF9B84033679 }}
 
-      - name: 🔐 Login to Azure
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_C4ABF48A397944228054B8CED287C3F6 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_7A68F2BF628E4F54A14B6D25C30EFEFE }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_346DB99210604A59B7A0CF9B84033679 }}
-
-      - name: 🚀 Deploy to Azure Web App
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: Backendmernapp
-          slot-name: Production
-          package: ./app/server
+     - name: 🚀 Deploy to Azure Web App
+       uses: azure/webapps-deploy@v3
+       with:
+         app-name: Backendmernapp
+         slot-name: Production
+         package: ./app/server
 
 

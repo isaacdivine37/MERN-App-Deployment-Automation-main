@@ -80,6 +80,18 @@ jobs:
          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_7A68F2BF628E4F54A14B6D25C30EFEFE }}
          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_346DB99210604A59B7A0CF9B84033679 }}
       
+      - name: Configure SCM site access for deployment
+        run: |
+          # Allow access to SCM site (for deployments) while keeping main site restricted
+          az webapp config access-restriction add \
+            --name Backendmernapp \
+            --resource-group ISAACMERNAPP \
+            --rule-name "AllowSCMDeployment" \
+            --action Allow \
+            --ip-address 0.0.0.0/0 \
+            --priority 100 \
+            --scm-site || echo "SCM access rule may already exist"
+      
       - name: 🚀 Deploy to Azure Web App
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3

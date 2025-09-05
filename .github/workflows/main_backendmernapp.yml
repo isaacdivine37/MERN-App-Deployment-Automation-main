@@ -80,45 +80,10 @@ jobs:
          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_7A68F2BF628E4F54A14B6D25C30EFEFE }}
          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_346DB99210604A59B7A0CF9B84033679 }}
       
-      - name: Get GitHub Actions Runner IP
-        id: runner-ip
-        run: |
-          RUNNER_IP=$(curl -s https://api.ipify.org)
-          echo "RUNNER_IP=$RUNNER_IP" >> $GITHUB_OUTPUT
-          echo "GitHub Actions Runner IP: $RUNNER_IP"
-      
-      - name: Configure deployment access with runner IP
-        run: |
-          # Remove any existing temporary deployment rules first
-          az webapp config access-restriction remove --name Backendmernapp --resource-group ISAACMERNAPP --scm-site --rule-name "GitHubActionsTemp" || true
-          
-          # Configure SCM site to not inherit main site restrictions
-          az webapp config access-restriction set --name Backendmernapp --resource-group ISAACMERNAPP --scm-site --use-same-restrictions-for-scm-site false
-          
-          # Allow only the current GitHub Actions runner IP for deployment
-          az webapp config access-restriction add \
-            --name Backendmernapp \
-            --resource-group ISAACMERNAPP \
-            --rule-name "GitHubActionsTemp" \
-            --action Allow \
-            --ip-address "${{ steps.runner-ip.outputs.RUNNER_IP }}/32" \
-            --priority 100 \
-            --scm-site
-      
       - name: 🚀 Deploy to Azure Web App
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
          app-name: 'Backendmernapp'
-         slot-name: 'Production'
+         publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
          package: '.'
-      
-      - name: Cleanup - Remove temporary IP access
-        if: always()  # Run even if deployment fails
-        run: |
-          # Remove the temporary GitHub Actions IP rule
-          az webapp config access-restriction remove \
-            --name Backendmernapp \
-            --resource-group ISAACMERNAPP \
-            --rule-name "GitHubActionsTemp" \
-            --scm-site || echo "Cleanup completed or rule didn't exist"

@@ -57,7 +57,7 @@ jobs:
         run: unzip release.zip -d ./server-deploy
 
       - name: Login to Azure
-        uses: azure/login@v2
+        uses: azure/login@v1
         with:
           client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_DD9FB593566744489B1C62093AEE9834 }}
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_F096EB0932BC426895130AA63A7E3055 }}
@@ -70,4 +70,5 @@ jobs:
           app-name: 'BACKEND-MERN-APP'
           slot-name: 'production'
           package: ./server-deploy
+
 

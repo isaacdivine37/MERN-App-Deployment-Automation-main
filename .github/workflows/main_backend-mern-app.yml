@@ -22,7 +22,7 @@ jobs:
         with:
           node-version: '20.x'
           cache: 'npm'
-          cache-dependency-path: app/server/package-lock.json  # 👈 Point to lock file
+          cache-dependency-path: app/server/package-lock.json  # 👈 Lock file path
 
       - name: Install Dependencies
         run: npm ci
@@ -59,16 +59,13 @@ jobs:
       - name: Login to Azure
         uses: azure/login@v1
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_DD9FB593566744489B1C62093AEE9834 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_F096EB0932BC426895130AA63A7E3055 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_6789D55DE41947B9A5E71C1ACF9598A5 }}
-          client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          auth-type: 'OIDC'
+
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
-          app-name: 'BACKEND-MERN-APP'
-          slot-name: 'production'
-          package: ./server-deploy
-
-
+          app-name: 'BACKEND-MERN-APP

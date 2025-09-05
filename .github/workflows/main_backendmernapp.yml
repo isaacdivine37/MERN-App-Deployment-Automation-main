@@ -120,6 +120,5 @@ jobs:
           az webapp config access-restriction remove \
             --name Backendmernapp \
             --resource-group ISAACMERNAPP \
-            --scm-site \
-            --rule-name "GitHubActionsTemp" || true
-          echo "Temporary deployment access removed"
+            --rule-name "GitHubActionsTemp" \
+            --scm-site || echo "Cleanup completed or rule didn't exist"

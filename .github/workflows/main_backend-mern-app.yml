@@ -62,7 +62,7 @@ jobs:
           client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_DD9FB593566744489B1C62093AEE9834 }}
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_F096EB0932BC426895130AA63A7E3055 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_6789D55DE41947B9A5E71C1ACF9598A5 }}
-
+          client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
@@ -70,3 +70,4 @@ jobs:
           app-name: 'BACKEND-MERN-APP'
           slot-name: 'production'
           package: ./server-deploy
+

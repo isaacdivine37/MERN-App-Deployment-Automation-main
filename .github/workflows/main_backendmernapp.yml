@@ -45,8 +45,8 @@ jobs:
       name: 'Production'
       url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
     permissions:
-      id-token: write # Required for OIDC login to Azure
-      contents: read # Required to download artifact
+      id-token: write   # Required for OIDC login to Azure
+      contents: read    # Required to download artifact
 
     steps:
       - name: Download artifact from build job
@@ -71,68 +71,12 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_7A68F2BF628E4F54A14B6D25C30EFEFE }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_346DB99210604A59B7A0CF9B84033679 }}
 
-      - name: 🔐 Configure SCM Access for VNet-Integrated App
-        run: |
-          # Get current runner IP
-          RUNNER_IP=$(curl -s https://api.ipify.org)
-          echo "GitHub Actions Runner IP: $RUNNER_IP"
-
-          # Configure SCM site to have separate rules from main site
-          echo "🔧 Configuring SCM site access restrictions..."
-          az webapp config access-restriction set \
-            --name Backendmernapp \
-            --resource-group ISAACMERNAPP \
-            --use-same-restrictions-for-scm-site false
-
-          # Remove any existing temporary SCM rules
-          echo "🧹 Cleaning up any existing temporary rules..."
-          az webapp config access-restriction remove \
-            --name Backendmernapp \
-            --resource-group ISAACMERNAPP \
-            --rule-name "TempGitHubDeploy" \
-            --scm-site || echo "→ No existing SCM rule to remove"
-
-          # Add GitHub runner IP to SCM site with highest priority
-          echo "➕ Adding temporary SCM access for: $RUNNER_IP/32"
-          az webapp config access-restriction add \
-            --name Backendmernapp \
-            --resource-group ISAACMERNAPP \
-            --rule-name "TempGitHubDeploy" \
-            --action Allow \
-            --ip-address "$RUNNER_IP/32" \
-            --priority 1 \
-            --scm-site
-
-          # Wait for propagation
-          echo "⏳ Waiting 10 seconds for rule propagation..."
-          sleep 10
-
-          # Verify SCM configuration
-          echo "✅ SCM access restrictions configured:"
-          az webapp config access-restriction show \
-            --name Backendmernapp \
-            --resource-group ISAACMERNAPP \
-            --query "scmIpSecurityRestrictions" \
-            --output table
-
       - name: 🚀 Deploy to Azure Web App
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
           app-name: 'Backendmernapp'
           package: '.'
-
-      - name: 🔒 Remove Temporary SCM Access
-        if: always()
-        run: |
-          echo "🔒 Removing temporary SCM access rule..."
-          az webapp config access-restriction remove \
-            --name Backendmernapp \
-            --resource-group ISAACMERNAPP \
-            --rule-name "TempGitHubDeploy" \
-            --scm-site || echo "→ Rule already removed or not found"
-
-          echo "✅ Temporary SCM deployment access removed - your API is secure again"
 
       - name: Logout from Azure
         if: always()

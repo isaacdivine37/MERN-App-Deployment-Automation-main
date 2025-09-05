@@ -80,9 +80,34 @@ jobs:
          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_7A68F2BF628E4F54A14B6D25C30EFEFE }}
          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_346DB99210604A59B7A0CF9B84033679 }}
       
+      - name: Get GitHub Actions Runner IP and Allow Deployment
+        run: |
+          # Get current runner IP
+          RUNNER_IP=$(curl -s https://api.ipify.org)
+          echo "GitHub Actions Runner IP: $RUNNER_IP"
+          
+          # Temporarily allow this IP for deployment (main site - this allows deployment)
+          az webapp config access-restriction add \
+            --name Backendmernapp \
+            --resource-group ISAACMERNAPP \
+            --rule-name "TempGitHubDeploy" \
+            --action Allow \
+            --ip-address "$RUNNER_IP/32" \
+            --priority 90
+      
       - name: 🚀 Deploy to Azure Web App
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
          package: '.'
+      
+      - name: Remove Temporary Deployment Access
+        if: always()  # Always run, even if deployment fails
+        run: |
+          # Remove the temporary IP access rule
+          az webapp config access-restriction remove \
+            --name Backendmernapp \
+            --resource-group ISAACMERNAPP \
+            --rule-name "TempGitHubDeploy" || echo "Temporary rule already removed or didn't exist"
+          echo "✅ Temporary deployment access removed - your API is secure again"

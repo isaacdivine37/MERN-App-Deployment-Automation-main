@@ -80,20 +80,33 @@ jobs:
          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_7A68F2BF628E4F54A14B6D25C30EFEFE }}
          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_346DB99210604A59B7A0CF9B84033679 }}
       
-      - name: Get GitHub Actions Runner IP and Allow Deployment
+      - name: Debug and Configure Deployment Access
         run: |
           # Get current runner IP
           RUNNER_IP=$(curl -s https://api.ipify.org)
           echo "GitHub Actions Runner IP: $RUNNER_IP"
           
-          # Temporarily allow this IP for deployment (main site - this allows deployment)
+          # Show current access restriction rules
+          echo "=== Current Access Restrictions ==="
+          az webapp config access-restriction show --name Backendmernapp --resource-group ISAACMERNAPP
+          
+          # Remove any existing temporary rule first
+          az webapp config access-restriction remove \
+            --name Backendmernapp \
+            --resource-group ISAACMERNAPP \
+            --rule-name "TempGitHubDeploy" || echo "No existing temp rule to remove"
+          
+          # Add GitHub runner IP with HIGHEST priority (priority 1)
           az webapp config access-restriction add \
             --name Backendmernapp \
             --resource-group ISAACMERNAPP \
             --rule-name "TempGitHubDeploy" \
             --action Allow \
             --ip-address "$RUNNER_IP/32" \
-            --priority 90
+            --priority 1
+          
+          echo "=== Updated Access Restrictions ==="
+          az webapp config access-restriction show --name Backendmernapp --resource-group ISAACMERNAPP
       
       - name: 🚀 Deploy to Azure Web App
         id: deploy-to-webapp

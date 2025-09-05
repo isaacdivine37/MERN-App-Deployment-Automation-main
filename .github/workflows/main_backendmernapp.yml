@@ -89,11 +89,11 @@ jobs:
       
       - name: Configure deployment access with runner IP
         run: |
-          # Disable SCM IP restrictions inheritance from main site
-          az webapp config set --name Backendmernapp --resource-group ISAACMERNAPP --scm-ip-security-restrictions-use-main false
-          
-          # Remove any existing temporary deployment rules
+          # Remove any existing temporary deployment rules first
           az webapp config access-restriction remove --name Backendmernapp --resource-group ISAACMERNAPP --scm-site --rule-name "GitHubActionsTemp" || true
+          
+          # Configure SCM site to not inherit main site restrictions
+          az webapp config access-restriction set --name Backendmernapp --resource-group ISAACMERNAPP --scm-site --use-same-restrictions-for-scm-site false
           
           # Allow only the current GitHub Actions runner IP for deployment
           az webapp config access-restriction add \

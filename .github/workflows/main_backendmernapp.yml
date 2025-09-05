@@ -45,8 +45,8 @@ jobs:
       name: 'Production'
       url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
     permissions:
-      id-token: write  # Required for Azure login via OIDC
-      contents: read   # Required for artifact access
+      id-token: write  # Required for OIDC login to Azure
+      contents: read   # Required to download artifact
 
     steps:
       - name: Download artifact from build job
@@ -64,34 +64,49 @@ jobs:
           echo "=== Checking for package.json ==="
           ls -la ./app/package.json || echo "⚠️ package.json not found"
 
-      - name: 🔐 Login to Azure
+      - name: 🔐 Login to Azure via OIDC
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_C4ABF48A397944228054B8CED287C3F6 }}
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_7A68F2BF628E4F54A14B6D25C30EFEFE }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_346DB99210604A59B7A0CF9B84033679 }}
 
-      - name: 🛡️ Configure IP Restrictions (Sync SCM with Main)
+      - name: 🔐 Configure IP Restrictions (Fix SCM Inheritance)
         run: |
-          # Get runner's public IP
+          # Get current runner IP
           RUNNER_IP=$(curl -s https://api.ipify.org)
           echo "GitHub Actions Runner IP: $RUNNER_IP"
 
-          # Ensure SCM uses same IP rules as main site
-          echo "✅ Syncing SCM IP restrictions with main site"
+          # STEP 1: Remove SCM-specific rules to force true inheritance
+          echo "🧹 Removing SCM-specific IP rules..."
+          az webapp config access-restriction remove \
+            --name Backendmernapp \
+            --resource-group ISAACMERNAPP \
+            --rule-name "AllowSCMDeployment" \
+            --scm-site true || echo "→ No SCM allow rule to remove"
+
+          az webapp config access-restriction remove \
+            --name Backendmernapp \
+            --resource-group ISAACMERNAPP \
+            --rule-name "Deny all" \
+            --scm-site true || echo "→ No SCM deny rule to remove"
+
+          # STEP 2: Ensure SCM inherits from main site
+          echo "✅ Syncing SCM with main site IP restrictions"
           az webapp config access-restriction set \
             --name Backendmernapp \
             --resource-group ISAACMERNAPP \
             --use-same-restrictions-for-scm-site true
 
-          # Remove any existing temp rule (main site)
-          echo "🧹 Removing existing temp rule if present"
+          # STEP 3: Remove any old temp rule from main site
+          echo "🧹 Removing previous temp rule (if exists)"
           az webapp config access-restriction remove \
             --name Backendmernapp \
             --resource-group ISAACMERNAPP \
-            --rule-name "TempGitHubDeploy" || echo "→ No existing temp rule to remove"
+            --rule-name "TempGitHubDeploy" \
+            --action Allow || echo "→ No old rule to remove"
 
-          # Add current runner IP with highest priority
+          # STEP 4: Add current runner IP with highest priority
           echo "➕ Adding temporary IP access: $RUNNER_IP/32"
           az webapp config access-restriction add \
             --name Backendmernapp \
@@ -101,9 +116,15 @@ jobs:
             --ip-address "$RUNNER_IP/32" \
             --priority 1
 
-          # Confirm updated rules
-          echo "✅ Updated IP restrictions (main + SCM):"
-          az webapp config access-restriction show --name Backendmernapp --resource-group ISAACMERNAPP
+          # STEP 5: Wait for Azure to propagate the network rules
+          echo "⏳ Waiting 15 seconds for IP rule propagation..."
+          sleep 15
+
+          # STEP 6: Confirm final configuration
+          echo "✅ Final access restrictions:"
+          az webapp config access-restriction show \
+            --name Backendmernapp \
+            --resource-group ISAACMERNAPP
 
       - name: 🚀 Deploy to Azure Web App
         id: deploy-to-webapp
@@ -114,17 +135,17 @@ jobs:
           package: ./app
 
       - name: Remove Temporary Deployment Access
-        if: always()  # Always run cleanup
+        if: always()
         run: |
           echo "🔒 Removing temporary IP access rule..."
           az webapp config access-restriction remove \
             --name Backendmernapp \
             --resource-group ISAACMERNAPP \
-            --rule-name "TempGitHubDeploy" || echo "→ Rule already removed or not found"
+            --rule-name "TempGitHubDeploy" \
+            --action Allow || echo "→ Rule already removed or not found"
           echo "✅ Temporary deployment access removed - your API is secure again"
 
       - name: Logout from Azure
         if: always()
         run: |
           az account clear
-        shell: bash

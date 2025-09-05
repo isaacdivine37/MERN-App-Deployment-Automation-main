@@ -14,55 +14,24 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 🔁 Checkout code from the repository
-      - name: Checkout Repository
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      # 🐞 Debug: List all files to confirm structure
-      - name: Debug - Show Directory Structure
-        run: find . -type f
-
-      # 🔍 Validate that package.json exists in expected location
-      - name: Validate package.json Exists
-        run: |
-          if [ ! -f app/server/package.json ]; then
-            echo "❌ ERROR: package.json not found at app/server/package.json"
-            echo "Available files:"
-            find . -type f
-            exit 1
-          fi
-        shell: bash
-
-      # 📦 Set up Node.js environment
-      - name: Set up Node.js
+      - name: Set up Node.js with Cache
         uses: actions/setup-node@v3
         with:
           node-version: '20.x'
-          cache: 'npm'  # Speeds up npm install using cache
+          cache: 'npm'
+          cache-dependency-path: app/server/package-lock.json  # 👈 Point to lock file
 
-      # 🔽 Install dependencies in app/server
       - name: Install Dependencies
-        run: npm ci  # Faster & more reliable than npm install in CI
+        run: npm ci
         working-directory: app/server
 
-      # 🧱 Optional: Build step (uncomment if you have a build script)
-      # - name: Build Application
-      #   run: npm run build
-      #   working-directory: app/server
-
-      # 🧪 Optional: Run tests (uncomment if needed)
-      # - name: Run Tests
-      #   run: npm test
-      #   working-directory: app/server
-      #   env:
-      #     NODE_ENV: test
-
-      # 🗜️ Create deployment artifact (zip)
-      - name: Zip Artifact for Deployment
+      - name: Zip Backend for Deployment
         run: zip -r release.zip .
         working-directory: app/server
 
-      # 📤 Upload artifact to be used in deploy job
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -76,23 +45,17 @@ jobs:
       name: 'Production'
       url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
     permissions:
-      id-token: write  # Required for Azure OIDC login (secure)
+      id-token: write
 
     steps:
-      # 📥 Download the built artifact
       - name: Download Artifact
         uses: actions/download-artifact@v4
         with:
           name: node-app
 
-      # 📂 Unzip artifact into a clean directory
       - name: Unzip Artifact
-        run: |
-          mkdir -p ./server-deploy
-          unzip release.zip -d ./server-deploy
-        shell: bash
+        run: unzip release.zip -d ./server-deploy
 
-      # 🔐 Log in to Azure using service principal (via secrets)
       - name: Login to Azure
         uses: azure/login@v2
         with:
@@ -100,16 +63,10 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_F096EB0932BC426895130AA63A7E3055 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_6789D55DE41947B9A5E71C1ACF9598A5 }}
 
-      # ☁️ Deploy to Azure Web App
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
           app-name: 'BACKEND-MERN-APP'
-          slot-name: 'production'  # Standard slot name is lowercase
+          slot-name: 'production'
           package: ./server-deploy
-
-      # ✅ Optional: Output deployment URL
-      - name: Show Deployment URL
-        run: |
-          echo "App deployed at: ${{ steps.deploy-to-webapp.outputs.webapp-url }}"

@@ -68,8 +68,9 @@ jobs:
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
-          app-name: 'mern-employer-app'
+          app-name: 'backend-mern-app'   # 👈 must match Azure exactly
           slot-name: 'Production'
           package: ./server-deploy
+
 
 

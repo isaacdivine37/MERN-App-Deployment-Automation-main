@@ -57,7 +57,7 @@ jobs:
         run: unzip release.zip -d ./server-deploy
 
       - name: Login to Azure
-        uses: azure/login@v1
+        uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -69,3 +69,4 @@ jobs:
         uses: azure/webapps-deploy@v3
         with:
           app-name: BACKEND-MERN-APP
+
